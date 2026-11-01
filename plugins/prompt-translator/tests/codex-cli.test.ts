@@ -3,6 +3,7 @@ import { expect, mock, test } from "claude-code/testing"
 const cli = { backend: "codex-cli" }
 
 test("translates through Codex stdin without reading an API key or calling HTTP", { options: cli }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("process.run", (_, e) => {
     expect(e.argv[0]).toBe("codex")
     expect(e.argv[1]).toBe("exec")
@@ -21,7 +22,8 @@ test("translates through Codex stdin without reading an API key or calling HTTP"
   expect(result.origin?.kind).toBe("sdk")
 })
 
-test("preserves custom executable paths and keeps shell syntax exclusively in stdin", { options: { ...cli, codex_path: "/opt/My Tools/codex", language: "fr" } }, async ($, on) => {
+test("preserves custom executable paths and keeps shell syntax exclusively in stdin", { options: { ...cli, codex_path_selection: "手动输入", codex_path: "/opt/My Tools/codex", language: "fr" } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   const source = "请翻译：$(touch SHOULD_NOT_RUN)\n第二行"
   on("process.run", (_, e) => {
     expect(e.argv[0]).toBe("/opt/My Tools/codex")
@@ -37,6 +39,7 @@ test("preserves custom executable paths and keeps shell syntax exclusively in st
 })
 
 test("stops on a nonzero Codex exit without using stderr or falling back to API", { options: cli }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("process.run", () => ({ value: { exitCode: 1, stdout: "partial translation", stderr: "private diagnostics", isStdoutTruncated: false, isStderrTruncated: false } }))
   const result = await $.prompt.submit({ text: "你好", origin: { kind: "sdk" }, wait: false })
   expect(result.drop).toContain("Codex CLI")
@@ -45,6 +48,7 @@ test("stops on a nonzero Codex exit without using stderr or falling back to API"
 })
 
 test("stops when Codex cannot start or times out", { options: cli }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("process.run", () => { throw new Error("private process error") })
   const result = await $.prompt.submit({ text: "你好", origin: { kind: "sdk" }, wait: false })
   expect(result.drop).toContain("Codex CLI")
@@ -53,6 +57,7 @@ test("stops when Codex cannot start or times out", { options: cli }, async ($, o
 
 for (const output of ["", "   "]) {
   test(`rejects empty Codex stdout ${JSON.stringify(output)}`, { options: cli }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
     on("process.run", () => ({ value: { exitCode: 0, stdout: output, stderr: "Hello.", isStdoutTruncated: false, isStderrTruncated: false } }))
     const result = await $.prompt.submit({ text: "你好", origin: { kind: "sdk" }, wait: false })
     expect(result.drop).toContain("Codex CLI")
@@ -61,6 +66,7 @@ for (const output of ["", "   "]) {
 }
 
 test("rejects truncated Codex stdout", { options: cli }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("process.run", () => ({ value: { exitCode: 0, stdout: "partial", stderr: "", isStdoutTruncated: true, isStderrTruncated: false } }))
   const result = await $.prompt.submit({ text: "你好", origin: { kind: "sdk" }, wait: false })
   expect(result.drop).toContain("Codex CLI")
@@ -69,6 +75,7 @@ test("rejects truncated Codex stdout", { options: cli }, async ($, on) => {
 
 for (const output of ["Keep the path.", "Keep __GLM_KEEP_0__ and __GLM_KEEP_0__."]) {
   test(`rejects invalid Codex protected markers: ${output}`, { options: cli }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
     on("process.run", () => ({ value: { exitCode: 0, stdout: output, stderr: "", isStdoutTruncated: false, isStderrTruncated: false } }))
     const result = await $.prompt.submit({ text: "保留 /tmp/demo.txt", origin: { kind: "sdk" }, wait: false })
     expect(result.drop).toContain("protected paths or code")
@@ -76,6 +83,7 @@ for (const output of ["Keep the path.", "Keep __GLM_KEEP_0__ and __GLM_KEEP_0__.
 }
 
 test("bypasses commands and empty inputs in Codex mode", { options: cli }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("ui.invalidate", () => ({ value: undefined }))
   on("prompt.submit", (_, e) => ({ text: e.text }))
   for (const text of ["/help 中文", "!echo 中文", "#记忆", "", "   "]) {
@@ -85,6 +93,7 @@ test("bypasses commands and empty inputs in Codex mode", { options: cli }, async
 })
 
 test("shows Codex CLI in interactive translation feedback", { options: cli }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   const clock = mock.clock(on)
   on("ui.render", ($, e) => $.ui.resolve(e).Box({ children: [] }))
   on("process.run", async () => {

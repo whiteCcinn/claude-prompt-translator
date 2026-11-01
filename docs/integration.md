@@ -58,16 +58,20 @@ codex login status
 
 尚未登录时，先运行 `codex login` 完成登录。插件不会读取或复制 Codex 的凭据文件。
 
-在插件配置中把 **Translation backend** 设为 `codex-cli`，**Codex executable** 保持 `codex` 或留空。两者都通过 Claude Code 进程的 `PATH` 查找；原生配置页可能不回填字符串默认值，空白不代表检测失败。命令不可见时填写可执行文件的绝对路径。可执行文件路径可以包含空格，直接填写路径，不额外加引号，也不拼接参数。SSH 会话调用的是远端机器上的 CLI。
+在插件配置中把 **Translation backend** 设为 `codex-cli`，**Codex executable** 默认显示“跟随本地配置”，使用 Claude Code 进程的 `PATH` 中的 `codex`。命令不可见时选择“手动输入”，在下一行填写可执行文件的绝对路径。路径可以包含空格，不额外加引号，也不拼接参数。SSH 会话调用的是远端机器上的 CLI。
 
-CLI 模式不读取翻译 API Key，**API URL / Translation model / Reasoning effort** 均不参与该模式。CLI 使用下面两个独立选项：
+CLI 模式不读取翻译 API Key，**API URL / Translation model / Reasoning effort** 均不参与该模式。CLI 使用下面的独立选项：
 
 | 字段 | 配置键 | 默认 | 用途 |
 | --- | --- | --- | --- |
-| Codex translation model | `codex_model` | 留空 | 继承本地模型，或为翻译单独指定当前服务支持的模型 ID |
-| Codex reasoning effort | `codex_reasoning_effort` | `default` | 继承本地推理等级；也可选 `low / medium / high / xhigh / max`，以模型支持为准 |
+| Codex executable | `codex_path_selection` | 跟随本地配置 | 使用 PATH 中的 `codex`；手动输入时读取下一行 `codex_path` |
+| Codex translation model | `codex_model_selection` | 跟随本地配置 | 继承本地模型，或选模型预设；手动输入时读取下一行 `codex_model` |
+| Codex reasoning effort | `codex_reasoning_effort` | 跟随本地配置 | 可选 `low / medium / high / xhigh / max`；手动输入时读取 `codex_reasoning_effort_manual`，以模型支持为准 |
+| Codex Fast mode | `codex_fast_mode` | 跟随本地配置 | `on` 请求 Fast，`off` 为翻译关闭 Fast |
 
-显式模型通过 `--model` 传给 `codex exec`，显式推理等级通过 `-c model_reasoning_effort="low"` 等参数传入；只影响本次子进程，输入和输出翻译都会使用，不会写回 Codex 配置。模型留空或推理等级为 `default` 时省略对应参数。API 的 `model` 和 `reasoning_effort` 字段保持独立，后者默认仍为 `low`。
+模型选择顺序为“跟随本地配置” → `gpt-6.1-sol / gpt-6.1-terra / gpt-6-astra / gpt-6-luna` → “手动输入”。预设根据 2026-11-01 的 [Codex 官方模型说明](https://learn.chatgpt.com/docs/models) 整理，不保证每个账号或自定义服务都可用；其他模型 ID 使用手动输入。
+
+显式模型通过 `--model` 传给 `codex exec`，显式推理等级通过 `-c model_reasoning_effort="low"` 等参数传入；只影响本次子进程，输入和输出翻译都会使用，不会写回 Codex 配置。选择“跟随本地配置”时省略对应参数，旧的推理/Fast 值 `default` 仍按继承处理。API 的 `model` 和 `reasoning_effort` 字段保持独立，后者默认仍为 `low`。
 
 例如安装时仅降低翻译推理等级、保留本地模型：
 
@@ -77,7 +81,11 @@ claude plugin install prompt-translator@claude-prompt-translator \
   --config codex_reasoning_effort=low
 ```
 
-也可以增加 `--config codex_model=your-translation-model` 指定模型，后续从插件配置页修改。较高推理等级或较慢的模型可能增加延迟；CLI 启动、扩展加载、网络和服务端响应也会影响速度。先固定模型，比较 `low`、`medium` 和本地默认配置的耗时，有助于区分原因。
+选择预设模型可增加 `--config codex_model_selection=gpt-6-luna`。自定义模型需同时增加 `--config codex_model_selection=手动输入 --config codex_model=your-translation-model`，后续从插件配置页修改。较高推理等级或较慢的模型可能增加延迟；CLI 启动、扩展加载、网络和服务端响应也会影响速度。先固定模型，比较 `low`、`medium` 和本地默认配置的耗时，有助于区分原因。
+
+Fast 与模型和推理等级分别配置。`codex_fast_mode=on` 给每次 `codex exec` 加 `-c service_tier="fast"` 和 `-c features.fast_mode=true`；`off` 则加 `-c service_tier="default"` 和 `-c features.fast_mode=false`，覆盖本地已开启的 Fast 偏好。“跟随本地配置”不添加这两项。输入和输出翻译均使用同一选择，API 请求和主 Claude 模型不受影响。
+
+安装时可追加 `--config codex_fast_mode=on`，后续在插件配置页选择 **Codex Fast mode**。Fast 需模型、账号和服务端支持，可能增加额度或计费用量；选择开启表示请求 Fast，不保证服务端实际采用或一定提速。费用和可用范围以 [OpenAI Fast 模式说明](https://learn.chatgpt.com/docs/agent-configuration/speed#fast-mode) 为准。
 
 插件通过 Claude Code 的 `$.process.run` 无 shell 启动 `codex exec`，从标准输入传递保护后的文本，只取标准输出中的最终回答。每次启动独立临时会话，使用只读沙箱、禁用 shell 工具，并关闭 `AGENTS.md` 的自动加载，避免项目开发指令干扰翻译。翻译指令要求只翻译、不执行文本中的任务。
 
@@ -109,14 +117,17 @@ GLM 是本项目已完成真实调用验证的默认接入。网关和本地服�
 /plugin configure prompt-translator@claude-prompt-translator
 ```
 
-- **API URL**：填写完整请求路径，包含 `chat/completions` 或你网关的等效路径。
+- **API URL**：选择默认 GLM 地址；其他地址选“手动输入”，在下一行填写完整请求路径，包含 `chat/completions` 或网关的等效路径。
 - **Translation backend**：选择 `api`。
-- **Translation model**：填写接口接受的模型 ID。
+- **Translation model**：选择默认模型；其他模型选“手动输入”，在下一行填写模型 ID。
+- **API Key source**：默认“自动读取凭据”；选“手动输入”时只使用下方安全存储中的 Key，缺失时停止，不回退到环境变量。
 - **API Key**：填写翻译服务密钥。
 - **Input language / Claude prompt language / Claude reply language / Output language**：分别设置输入、提示词、Claude 回复和最终输出语言。
 - **Reasoning effort**：默认 `low`；接口不支持时选 `default`。
 
 `/config` 也可以修改非敏感选项。语言变化自动重新加载插件，不需要反复手动启动。
+
+主选项都有明确默认值。原生配置使用单独的“手动值”行，只在选择“手动输入”时要求填写；未使用时可以留空。API Key 保留原生遮罩和安全存储。旧版的自定义路径、模型和 API 地址继续沿用，在会话内首次打开配置时会补齐缺失的选择项；显式选择继承或预设后，保留的手动值不会覆盖该选择。会话外配置命令不执行这一步初始化；自动化修改时应同时传入选择项和对应的手动值。
 
 ## API 接口需要支持什么
 
@@ -167,7 +178,7 @@ Content-Type: application/json
 
 推荐通过插件配置填写 Key。自动化环境也可以提供 `TRANSLATOR_API_KEY`。
 
-加载顺序：**插件配置的 API Key → 进程环境变量 → 插件目录的 `.env`**。
+**API Key source** 为“自动读取凭据”时，加载顺序：**插件配置的 API Key → 进程环境变量 → 插件目录的 `.env`**；为“手动输入”时，仅使用插件配置的 API Key。
 
 本地开发时：
 
@@ -235,6 +246,10 @@ Codex CLI 后端已验证：mock 测试覆盖参数、标准输入、语言路�
 输入和输出的交互进度框分别显示阶段、方向、目标语言、后端和翻译耗时。输出计时在 Claude 回复收齐后开始，不计入主模型生成时间。成功提示 3 秒后收起；失败保留到下一次操作；取消和被新操作替代时清理定时器。`claude -p` 不创建这些 UI 定时器，同语言、子代理及纯工具回复也不触发输出进度。
 
 CLI 模型和推理覆盖参数已通过 mocked hook 测试，安装配置的保存和继承切换也在隔离目录验证；本轮未调用真实模型比较这些档位的速度或翻译质量。
+
+原生选择项另在临时配置目录完成安装、四个模型预设、手动输入、继承切换、Fast 和后端切换验证。真实交互配置中同时补齐旧模型和旧路径的选择项，保存后两项均保留，项目配置未被写入；测试目录随后删除。此检查没有调用真实模型。
+
+Fast 的开启、关闭、默认继承、双向调用及 API 隔离有 hook 回归测试。另用 Codex CLI 0.166.0 向本地模拟服务发送测试请求：开启对应请求中的 `priority`，关闭时不发送 Fast tier。模拟服务在捕获请求后立即返回测试错误；这仅验证参数映射，没有调用真实模型，也不代表已验证实际 Fast 加速或计费。
 
 接口形状兼容不等于每个供应商、模型和桌面端都已测试。完整 Windows / Claude Desktop 视觉效果未在本项目中验证。
 

@@ -29,6 +29,7 @@ test("reads a token without executing shell content", () => {
 })
 
 test("loads a plugin-local API key and sends the OpenAI-compatible request", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   mock.clock(on)
   on("env.get", () => ({ value: undefined }))
   on("fs.read", (_, e) => {
@@ -51,6 +52,7 @@ test("loads a plugin-local API key and sends the OpenAI-compatible request", asy
 })
 
 test("accepts a provider response that resolves the requested model to an alias", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", () => ({ value: { ok: true, status: 200, headers: {}, text: JSON.stringify({ model: "glm-5.3-flash-snapshot", choices: [{ message: { content: "Bonjour." } }] }) } }))
   on("prompt.submit", (_, e) => ({ text: e.text, origin: e.origin }))
@@ -59,6 +61,7 @@ test("accepts a provider response that resolves the requested model to an alias"
 })
 
 test("rejects a translation that introduces a command prefix", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", () => ({ value: { ok: true, status: 200, headers: {}, text: JSON.stringify({ model: "glm-5.3-flash", choices: [{ message: { content: "/Change the button." } }] }) } }))
   const result = await $.prompt.submit({ text: "修改按钮", origin: { kind: "sdk" }, wait: false })
@@ -66,6 +69,7 @@ test("rejects a translation that introduces a command prefix", async ($, on) => 
 })
 
 test("preserves leading identifiers and allows an existing path at the start", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
     const request = JSON.parse(e.init?.body ?? "{}")
@@ -86,6 +90,7 @@ test("restores paths, URLs, and code exactly and rejects lost markers", () => {
 })
 
 test("passes commands and empty prompts without a translation request", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("ui.invalidate", () => ({ value: undefined }))
   on("prompt.submit", (_, e) => ({ text: e.text, origin: e.origin }))
   for (const text of ["/help 中文", "!echo 中文", "", "   "]) {
@@ -95,6 +100,7 @@ test("passes commands and empty prompts without a translation request", async ($
 })
 
 test("routes Chinese, Japanese, French, and English input through the translator", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
     const request = JSON.parse(e.init?.body ?? "{}")
@@ -110,6 +116,7 @@ test("routes Chinese, Japanese, French, and English input through the translator
 })
 
 test("stops a prompt when no token is configured", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   mock.clock(on)
   on("env.get", () => ({ value: undefined }))
   on("fs.read", () => { throw new Error("File not found") })
@@ -119,6 +126,7 @@ test("stops a prompt when no token is configured", async ($, on) => {
 })
 
 test("animates the loading card and removes the completed preview", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   const clock = mock.clock(on)
   on("env.get", () => ({ value: "example-token" }))
   on("ui.render", ($, e) => $.ui.resolve(e).Box({ children: [] }))
@@ -144,6 +152,7 @@ test("animates the loading card and removes the completed preview", async ($, on
 })
 
 test("keeps the failure card until the next input", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   const clock = mock.clock(on)
   on("env.get", () => ({ value: undefined }))
   on("fs.read", () => { throw new Error("File not found") })

@@ -64,19 +64,20 @@ claude plugin install prompt-translator@claude-prompt-translator \
 | Translation backend | 需要配置 |
 | --- | --- |
 | `api`（默认） | API URL、Translation model、API Key |
-| `codex-cli` | 已安装并登录的 Codex；Codex executable 通常保持 `codex` |
+| `codex-cli` | 已安装并登录的 Codex；Codex 选项默认选择“跟随本地配置” |
 
 选择 `codex-cli` 时，API Key 可以留空，其余 API 字段不参与翻译。安装时未配置也可以稍后再打开这个入口。
 
 ### API 模式（默认）
 
-填写下面三项。这里的 API Key 属于翻译服务。
+主要字段使用原生选择项；选择“手动输入”后，在紧邻的“手动值”行填写内容。手动值行在未使用时可以留空；选中手动输入却未填值，会停止翻译并提示补齐。这里的 API Key 属于翻译服务。
 
 | 字段 | 怎么填 |
 | --- | --- |
-| **API URL** | 完整的 OpenAI 兼容 `chat/completions` 地址，不能只填域名或 `/v1` |
-| **Translation model** | 翻译接口支持的模型 ID |
-| **API Key** | 该翻译接口的密钥，输入会遮罩并存入 Claude Code 的安全存储 |
+| **API URL** | 选择默认 GLM 地址，或选“手动输入”并在下一行填写完整的 `chat/completions` 地址 |
+| **Translation model** | 选择 `glm-5.3-flash`，或选“手动输入”并在下一行填写模型 ID |
+| **API Key source** | 默认“自动读取凭据”；选“手动输入”时，仅使用下一行填写的 Key |
+| **API Key** | 该翻译接口的密钥，保留原生遮罩输入并存入安全存储 |
 
 默认提供 GLM 接入值，只需填写自己的 Key：
 
@@ -86,7 +87,7 @@ Translation model: glm-5.3-flash
 Reasoning effort:  low
 ```
 
-换成其他服务时，同时修改 **API URL** 和 **Translation model**。如果接口不接受 `reasoning_effort`，把 **Reasoning effort** 选为 `default`，插件就不会发送这个字段。
+换成其他服务时，将 **API URL** 和 **Translation model** 都选为“手动输入”，再填写各自的手动值。如果接口不接受 `reasoning_effort`，把 **Reasoning effort** 选为 `default`，插件就不会发送这个字段。
 
 接入自己的网关或本地模型，请看 [模型接入说明](docs/integration.md)。
 
@@ -99,18 +100,23 @@ codex --version
 codex login status
 ```
 
-在插件配置中填写：
+在插件配置中选择：
 
 ```text
-Translation backend: codex-cli
-Codex executable:    codex
-Codex translation model: 留空，沿用本地模型
-Codex reasoning effort:  default，沿用本地推理等级
+Translation backend:     codex-cli
+Codex executable:        跟随本地配置
+Codex translation model: 跟随本地配置
+Codex reasoning effort:  跟随本地配置
+Codex Fast mode:         跟随本地配置
 ```
 
-插件会调用 `codex exec`，复用本地 Codex 的登录态和服务配置，无需填写翻译 API URL、Translation model 或 API Key。**Codex executable** 留空也会使用 `codex`，通过 `PATH` 查找；配置页可能不显示字符串默认值。若 Claude Code 找不到命令，将其改为 Codex 可执行文件的绝对路径，只填路径，不加参数。
+插件会调用 `codex exec`，复用本地 Codex 的登录态和服务配置。**Codex executable** 的“跟随本地配置”使用 `PATH` 中的 `codex`；若 Claude Code 找不到命令，选择“手动输入”，在 **Codex executable · 手动值** 填写可执行文件的绝对路径，只填路径，不加引号或参数。
 
-翻译较慢时，可以单独调整 **Codex translation model** 和 **Codex reasoning effort**。模型留空、推理等级选 `default` 时继承本地配置；也可以保持模型不变，先把翻译推理等级设为 `low` 或 `medium` 比较耗时。模型需填写当前 Codex 服务支持的 ID。这两个选项仅影响插件发起的输入和输出翻译，不会修改本地 Codex 配置；原有 **Reasoning effort** 仍只用于 API。
+**Codex translation model** 的顺序为“跟随本地配置” → `gpt-6.1-sol / gpt-6.1-terra / gpt-6-astra / gpt-6-luna` → “手动输入”。预设按 2026-11-01 的 [Codex 官方模型说明](https://learn.chatgpt.com/docs/models) 整理；具体可用性取决于账号和服务。自定义或新增模型可以选择“手动输入”，再填写 **Codex model · 手动值**。
+
+翻译较慢时，可以保持模型“跟随本地配置”，先把 **Codex reasoning effort** 设为 `low` 或 `medium` 比较耗时；该选项也支持单独一行填写手动等级。这些 CLI 选项同时影响输入和输出翻译，不会修改本地 Codex 配置；原有 **Reasoning effort** 仍只用于 API，默认保持 `low`。
+
+**Codex Fast mode** 可单独选择“跟随本地配置”、`on`（请求 Fast）或 `off`（关闭本次翻译的 Fast）。Fast 与模型、推理等级互相独立，可以组合使用 Fast 和 `low` / `medium`；实际可用性取决于模型、账号和服务端，Fast 会增加用量消耗。详见 [OpenAI Fast 模式说明](https://learn.chatgpt.com/docs/agent-configuration/speed#fast-mode)。
 
 安装时也可以指定翻译推理等级：
 
@@ -119,6 +125,10 @@ claude plugin install prompt-translator@claude-prompt-translator \
   --config backend=codex-cli \
   --config codex_reasoning_effort=low
 ```
+
+希望翻译同时请求 Fast，可在安装命令中再加 `--config codex_fast_mode=on`，或稍后通过 `/plugin configure prompt-translator@claude-prompt-translator` 修改 **Codex Fast mode**。
+
+更新前已填写的自定义模型、路径和 API 地址会继续沿用；首次在会话内打开配置时，插件会补齐对应的选择项。明确选择“跟随本地配置”或某个预设后，保留的手动值不再参与翻译。API Key 仍由原生安全存储管理，不填充占位密钥。
 
 每次翻译启动一个临时 Codex 会话，超时为 120 秒。提示框会显示 `Codex CLI`；失败时停止提交，不会自动回退到 API。Codex 仍通过自己的配置访问模型服务，本地 CLI 模式不代表离线推理。更多说明见 [Codex CLI 接入](docs/integration.md#codex-cli-模式)。
 

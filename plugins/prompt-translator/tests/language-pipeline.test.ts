@@ -15,6 +15,7 @@ async function collect<R>(stream: AsyncGenerator<TurnStepChunk, R>) {
 }
 
 test("default inbound route declares Chinese source and English Claude replies", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
     const request = JSON.parse(e.init?.body ?? "{}")
@@ -29,6 +30,7 @@ test("default inbound route declares Chinese source and English Claude replies",
 })
 
 test("input, prompt, and Claude reply languages are independent", { options: { input_language: "jp", language: "en", claude_language: "fr", output_language: "cn" } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
     const request = JSON.parse(e.init?.body ?? "{}")
@@ -43,6 +45,7 @@ test("input, prompt, and Claude reply languages are independent", { options: { i
 })
 
 test("default output translates English replies into Chinese", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
     const request = JSON.parse(e.init?.body ?? "{}")
@@ -62,6 +65,7 @@ test("default output translates English replies into Chinese", async ($, on) => 
 })
 
 test("Codex output translation restores code split across response chunks", { options: { backend: "codex-cli" } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("process.run", (_, e) => {
     expect(e.argv.join(" ")).toContain("assistant response")
     expect(e.init?.stdin).toContain("__GLM_KEEP_0__")
@@ -80,6 +84,7 @@ test("Codex output translation restores code split across response chunks", { op
 })
 
 test("output translation preserves tools, thinking, engine references and usage", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   const protocol: TurnStepChunk[] = [
     { kind: "tool", index: 1, id: "tool-1", name: "Read" },
     { kind: "input", index: 1, json: '{"file_path":"/tmp/demo.go"}' },
@@ -103,6 +108,7 @@ test("output translation preserves tools, thinking, engine references and usage"
 })
 
 test("response headings are translated without applying input command bypass", { options: { output_language: "jp" } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
     const request = JSON.parse(e.init?.body ?? "{}")
@@ -118,6 +124,7 @@ test("response headings are translated without applying input command bypass", {
 })
 
 test("failed output translation shows one error without leaking original text", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", () => ({ value: { ok: true, status: 200, headers: {}, text: JSON.stringify({ choices: [{ message: { content: "missing path marker" } }] }) } }))
   let calls = 0
@@ -134,6 +141,7 @@ test("failed output translation shows one error without leaking original text", 
 })
 
 test("same-language output and subagents pass without calling a translator", { options: { claude_language: "fr", output_language: "fr" } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("turn.step", async function* (_, e) {
     yield { kind: "text", index: 0, text: "Bonjour." }
     yield stop
@@ -144,6 +152,7 @@ test("same-language output and subagents pass without calling a translator", { o
 })
 
 test("tool-only responses do not invoke output translation", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   const tool: TurnStepChunk = { kind: "tool", index: 0, id: "call-1", name: "Read" }
   on("turn.step", async function* (_, e) {
     yield tool
@@ -156,6 +165,7 @@ test("tool-only responses do not invoke output translation", async ($, on) => {
 })
 
 test("retry response indices do not merge failed and successful attempts", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
     const request = JSON.parse(e.init?.body ?? "{}")
@@ -175,6 +185,7 @@ test("retry response indices do not merge failed and successful attempts", async
 })
 
 test("oversized response buffering fails explicitly while preserving protocol chunks", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   const tool: TurnStepChunk = { kind: "tool", index: 1, id: "call-1", name: "Read" }
   on("turn.step", async function* (_, e) {
     yield { kind: "text", index: 0, text: "x".repeat(262145) }
@@ -189,6 +200,7 @@ test("oversized response buffering fails explicitly while preserving protocol ch
 })
 
 test("subagent responses bypass translation even when output differs", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("turn.step", async function* (_, e) {
     yield { kind: "text", index: 0, text: "Agent report." }
     yield stop
@@ -198,6 +210,7 @@ test("subagent responses bypass translation even when output differs", async ($,
 })
 
 test("same-as-claude output inherits a legacy prompt language without translation", { options: { language: "jp", output_language: "same-as-claude" } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("turn.step", async function* (_, e) {
     yield { kind: "text", index: 0, text: "こんにちは。" }
     yield stop
@@ -207,6 +220,7 @@ test("same-as-claude output inherits a legacy prompt language without translatio
 })
 
 test("output token truncation shows an error instead of partial translation", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", () => ({ value: { ok: true, status: 200, headers: {}, text: JSON.stringify({ choices: [{ finish_reason: "length", message: { content: "不完整译文" } }] }) } }))
   on("turn.step", async function* (_, e) {
@@ -220,6 +234,7 @@ test("output token truncation shows an error instead of partial translation", as
 })
 
 test("parallel responses keep their source text and translations separate", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   const clock = mock.clock(on)
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", async (_, e) => {
@@ -243,6 +258,7 @@ test("parallel responses keep their source text and translations separate", asyn
 })
 
 test("an interrupted model stream is not requested again by the catch handler", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   let calls = 0
   on("turn.step", async function* () {
     calls += 1
@@ -256,6 +272,7 @@ test("an interrupted model stream is not requested again by the catch handler", 
 })
 
 test("translation failure is placed in the completed retry attempt", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", () => ({ value: { ok: false, status: 500, headers: {}, text: "" } }))
   on("turn.step", async function* (_, e) {
@@ -281,6 +298,8 @@ test("cancellation while reading credentials prevents the outgoing HTTP request"
   const cancellation = new AbortController()
   let httpCalls = 0
   const engine = {
+    plugin: { name: "prompt-translator", root: "/tmp/translator" },
+    config: { list: async () => [] },
     env: { get: async () => { cancellation.abort(); return "example-token" } },
     http: { fetch: async () => {
       httpCalls += 1
@@ -303,6 +322,7 @@ test("cancellation while reading credentials prevents the outgoing HTTP request"
 })
 
 test("an oversized interrupted stream is not promoted into a completed tool response", async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   let calls = 0
   on("turn.step", async function* () {
     calls += 1
@@ -321,6 +341,7 @@ test("an oversized interrupted stream is not promoted into a completed tool resp
 
 for (const subagent of [true, false]) {
   test(`interrupted passthrough streams keep failure status (subagent=${subagent})`, { options: subagent ? {} : { output_language: "same-as-claude" } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
     let calls = 0
     on("turn.step", async function* () {
       calls += 1

@@ -2,8 +2,9 @@ import { expect, test } from "claude-code/testing"
 import type { TurnStepChunk } from "claude-code"
 
 test("CLI model and reasoning overrides are separate from API settings", { options: {
-  backend: "codex-cli", codex_model: "translation-model", codex_reasoning_effort: "low", model: "api-model", reasoning_effort: "high",
+  backend: "codex-cli", codex_model_selection: "手动输入", codex_model: "translation-model", codex_reasoning_effort: "low", model: "api-model", reasoning_effort: "high",
 } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("process.run", (_, e) => {
     const position = e.argv.indexOf("--model")
     expect(position >= 0).toBe(true)
@@ -20,6 +21,7 @@ test("CLI model and reasoning overrides are separate from API settings", { optio
 
 for (const effort of ["default", "low", "medium", "high", "xhigh", "max"]) {
   test(`CLI reasoning ${effort} preserves local model selection`, { options: { backend: "codex-cli", codex_reasoning_effort: effort } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
     on("process.run", (_, e) => {
       expect(e.argv.includes("--model")).toBe(false)
       const override = e.argv.filter(arg => arg.startsWith("model_reasoning_effort="))
@@ -31,7 +33,8 @@ for (const effort of ["default", "low", "medium", "high", "xhigh", "max"]) {
   })
 }
 
-test("CLI model overrides are trimmed but remain a single argv value", { options: { backend: "codex-cli", codex_model: "  translation model;$(touch MUST_NOT_RUN)  " } }, async ($, on) => {
+test("CLI model overrides are trimmed but remain a single argv value", { options: { backend: "codex-cli", codex_model_selection: "手动输入", codex_model: "  translation model;$(touch MUST_NOT_RUN)  " } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("process.run", (_, e) => {
     const position = e.argv.indexOf("--model")
     expect(position >= 0).toBe(true)
@@ -44,6 +47,7 @@ test("CLI model overrides are trimmed but remain a single argv value", { options
 })
 
 test("blank CLI model does not override local configuration", { options: { backend: "codex-cli", codex_model: "   " } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("process.run", (_, e) => {
     expect(e.argv.includes("--model")).toBe(false)
     expect(e.argv.some(arg => arg.startsWith("model_reasoning_effort="))).toBe(false)
@@ -53,7 +57,8 @@ test("blank CLI model does not override local configuration", { options: { backe
   expect((await $.prompt.submit({ text: "你好", origin: { kind: "sdk" }, wait: false })).text).toBe("Hello.")
 })
 
-test("CLI overrides also apply to output translation", { options: { backend: "codex-cli", codex_model: "translation-model", codex_reasoning_effort: "medium" } }, async ($, on) => {
+test("CLI overrides also apply to output translation", { options: { backend: "codex-cli", codex_model_selection: "手动输入", codex_model: "translation-model", codex_reasoning_effort: "medium" } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("process.run", (_, e) => {
     const position = e.argv.indexOf("--model")
     expect(position >= 0).toBe(true)
@@ -73,6 +78,7 @@ test("CLI overrides also apply to output translation", { options: { backend: "co
 })
 
 test("API translation ignores CLI overrides and retains the low default", { options: { codex_model: "cli-only", codex_reasoning_effort: "high" } }, async ($, on) => {
+  on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
     const request = JSON.parse(e.init?.body ?? "{}")
