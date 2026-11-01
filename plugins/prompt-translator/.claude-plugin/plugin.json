@@ -1,34 +1,23 @@
 {
   "name": "prompt-translator",
   "version": "0.1.0",
-  "description": "Translate prompts before Claude Code using your own OpenAI-compatible API.",
+  "description": "Translate prompts before Claude Code using an OpenAI-compatible API or local Codex CLI.",
   "author": {
     "name": "Toy",
     "url": "https://github.com/cfrs2005"
   },
   "userConfig": {
-    "api_url": {
+    "backend": {
       "type": "string",
-      "title": "API URL",
-      "description": "Complete OpenAI-compatible chat/completions URL. Change this when using another provider.",
-      "default": "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
-    },
-    "model": {
-      "type": "string",
-      "title": "Translation model",
-      "description": "Model ID accepted by your translation API.",
-      "default": "glm-5.3-flash"
-    },
-    "api_key": {
-      "type": "string",
-      "title": "API Key",
-      "description": "Saved in secure storage. Alternatively use TRANSLATOR_API_KEY in the environment or plugin .env.",
-      "sensitive": true
+      "title": "Translation backend",
+      "description": "Choose api for an HTTP endpoint or codex-cli for your local Codex login. You can change this later in /config or /plugin configure.",
+      "options": ["api", "codex-cli"],
+      "default": "api"
     },
     "language": {
       "type": "string",
       "title": "Target language",
-      "description": "en: English; jp: Japanese; cn: Simplified Chinese; fr: French. Controls prompt translation and replies.",
+      "description": "Both backends: en: English; jp: Japanese; cn: Simplified Chinese; fr: French. Controls prompt translation and replies.",
       "options": [
         "en",
         "jp",
@@ -37,10 +26,34 @@
       ],
       "default": "en"
     },
+    "codex_path": {
+      "type": "string",
+      "title": "Codex executable",
+      "description": "Codex CLI backend only. Leave codex to use PATH, or enter an executable's absolute path without arguments. Uses Codex's saved login and model configuration.",
+      "default": "codex"
+    },
+    "api_url": {
+      "type": "string",
+      "title": "API URL",
+      "description": "API backend only. Complete OpenAI-compatible chat/completions URL. Ignored in codex-cli mode.",
+      "default": "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
+    },
+    "model": {
+      "type": "string",
+      "title": "Translation model",
+      "description": "API backend only. Model ID accepted by your translation API. Codex CLI uses its own model configuration.",
+      "default": "glm-5.3-flash"
+    },
+    "api_key": {
+      "type": "string",
+      "title": "API Key",
+      "description": "API backend only; leave empty for codex-cli. Saved in secure storage. Alternatively use TRANSLATOR_API_KEY in the environment or plugin .env.",
+      "sensitive": true
+    },
     "reasoning_effort": {
       "type": "string",
       "title": "Reasoning effort",
-      "description": "Use low for the default GLM model. Choose default to omit this field for APIs that do not support it.",
+      "description": "API backend only. Use low for the default GLM model, or default to omit this field. Codex CLI uses its own reasoning configuration.",
       "options": [
         "default",
         "low",

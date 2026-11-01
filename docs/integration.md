@@ -1,6 +1,56 @@
 # 模型接入说明
 
-## 先确定这三个值
+## 先选择翻译方式
+
+插件配置中的 **Translation backend** 支持：
+
+| 值 | 调用方式 | 认证来源 |
+| --- | --- | --- |
+| `api`（默认） | OpenAI 兼容 HTTP 接口 | 插件配置、环境变量或 `.env` 中的翻译 API Key |
+| `codex-cli` | 本地 `codex exec` 子进程 | Codex CLI 已保存的登录态和服务配置 |
+
+两种模式共用语言选择、代码片段保护、回复语言指令和失败拦截。不会在两种模式之间自动回退。
+
+## 安装时选择与后续修改
+
+安装后，在 Claude Code 中运行 `/plugin configure prompt-translator@claude-prompt-translator`，按顺序选择翻译方式和语言，再填写该模式需要的配置。这个入口也可以从 `/plugin` 的 Installed 标签进入：选择本插件，再选择 **Configure options**。
+
+也可以在安装命令中直接指定配置，以下参数已在 Claude Code 2.1.316 验证：
+
+```bash
+claude plugin install prompt-translator@claude-prompt-translator \
+  --config backend=codex-cli \
+  --config language=en
+```
+
+后续通过同一配置入口或 `/config` 的 **Translation backend** 随时切换。两种模式的配置分别保留，切换不会清空另一种模式的字段。API Key 只在 API 模式使用，不影响 Codex CLI 的配置和运行。
+
+在交互会话中保存配置后，Claude Code 会重新加载插件。若使用终端命令 `claude plugin configure ... --values-stdin` 在会话外修改配置，则按命令提示重启 Claude Code，或在会话中重新加载插件。
+
+## Codex CLI 模式
+
+在运行 Claude Code 的同一机器、用户和环境中确认：
+
+```bash
+codex --version
+codex login status
+```
+
+尚未登录时，先运行 `codex login` 完成登录。插件不会读取或复制 Codex 的凭据文件。
+
+在插件配置中把 **Translation backend** 设为 `codex-cli`，**Codex executable** 保持 `codex`。后者通过 Claude Code 进程的 `PATH` 查找；命令不可见时填写可执行文件的绝对路径。可执行文件路径可以包含空格，直接填写路径，不额外加引号，也不拼接参数。SSH 会话调用的是远端机器上的 CLI。
+
+CLI 模式不读取翻译 API Key，**API URL / Translation model / Reasoning effort** 均不参与该模式；模型和推理设置沿用本地 Codex 的配置。
+
+插件通过 Claude Code 的 `$.process.run` 无 shell 启动 `codex exec`，从标准输入传递保护后的文本，只取标准输出中的最终回答。每次启动独立临时会话，使用只读沙箱、禁用 shell 工具，并关闭 `AGENTS.md` 的自动加载，避免项目开发指令干扰翻译。翻译指令要求只翻译、不执行文本中的任务。
+
+每次调用最多等待 120 秒。启动失败、超时、非零退出码、空输出、标准输出被截断或保护标记异常时，都会停止提交。取消的提交即使收到译文也不会继续发送；子进程的停止由宿主和超时控制。插件不会显示 Codex 的原始标准错误内容。
+
+Codex 仍会访问其配置的模型服务，并遵循该服务的额度和可用性。本地配置中的 MCP、hooks 等扩展可能影响启动耗时和行为；只读沙箱和禁用 shell 不代表所有扩展都被禁用。插件不会修改本地 Codex 配置。
+
+本功能已在 Codex CLI 0.166.0 和 Claude Code 2.1.316 环境下验证。旧版 Codex 若不支持这些参数，请先升级；其他操作系统尚未验证。
+
+## API 模式：先确定这三个值
 
 从你的翻译服务获取：**完整请求地址、模型 ID、API Key**。这三项必须来自同一个服务。
 
@@ -23,6 +73,7 @@ GLM 是本项目已完成真实调用验证的默认接入。网关和本地服�
 ```
 
 - **API URL**：填写完整请求路径，包含 `chat/completions` 或你网关的等效路径。
+- **Translation backend**：选择 `api`。
 - **Translation model**：填写接口接受的模型 ID。
 - **API Key**：填写翻译服务密钥。
 - **Target language**：默认 `en`，可选 `jp / cn / fr`。
@@ -30,7 +81,7 @@ GLM 是本项目已完成真实调用验证的默认接入。网关和本地服�
 
 `/config` 也可以修改非敏感选项。语言变化自动重新加载插件，不需要反复手动启动。
 
-## 接口需要支持什么
+## API 接口需要支持什么
 
 插件向 **API URL 原样发起 POST**，不会自动补 `/v1` 或其他路径。
 
@@ -73,7 +124,7 @@ Content-Type: application/json
 
 这个入口使用 `chat/completions` 协议。仅提供 Anthropic `messages` 或 OpenAI `responses` 协议的地址，需要先通过网关转换。
 
-## 环境变量和 .env
+## API 环境变量和 .env
 
 推荐通过插件配置填写 Key。自动化环境也可以提供 `TRANSLATOR_API_KEY`。
 
@@ -117,11 +168,14 @@ claude --plugin-dir ./plugins/prompt-translator
 | 现象 | 检查 |
 | --- | --- |
 | 提示没有 API Key | 检查当前插件 ID 的配置，或 `TRANSLATOR_API_KEY` |
+| Codex CLI 无法启动或超时 | 检查 **Codex executable**、Claude Code 的 `PATH`、`codex login status` 和本地 Codex 配置；最长等待 120 秒 |
+| Codex CLI 非零退出码 | 在相同环境单独检查 Codex 的登录、额度、服务配置和版本 |
+| Codex CLI 输出为空或被截断 | 缩短输入后重试，检查本地 Codex 是否能正常完成非交互任务 |
 | HTTP 401 / 403 | Key、接口与账号权限是否匹配 |
 | HTTP 404 | 是否填了完整请求路径 |
 | HTTP 400 | 模型 ID、`max_tokens` 和 `reasoning_effort` 是否被接口接受；可把推理档位设为 `default` |
 | HTTP 429 | 检查服务额度或限流，稍后重试 |
-| 译文过长 | 缩短输入；本版本输出预算为 1024 tokens |
+| API 译文过长 | 缩短输入；API 模式输出预算为 1024 tokens |
 | 路径或代码标记未完整保留 | 模型没有完整保留标记；换翻译模型或缩短输入 |
 | 没有加载提示框 | 用 `claude plugin list` 检查插件状态；确认当前打开的是会话，不是后台任务列表 |
 | 出现 `Your conversation moved to the background` | 这是 Claude Code 的后台会话视图。选中对应会话按 Enter，或按 Esc 返回；普通会话可在 `/config` 关闭 `leftArrowOpensAgents` |
@@ -132,6 +186,8 @@ claude --plugin-dir ./plugins/prompt-translator
 
 开发基线为 Claude Code 2.1.291。插件的请求、密钥读取、语言路由、代码片段保护、失败拦截和提示框状态有自动检查。GLM 端点已完成真实翻译和 Claude 收到译文的回读验证。
 
+Codex CLI 后端已验证：mock 测试覆盖参数、标准输入、语言路由、代码片段还原、异常拦截和提示框；另在本机通过实际提交处理函数启动真实 Codex 子进程，确认英文译文、代码路径还原和回复语言 context。该检查不包含真实 Claude 模型接收译文后的回答，也不包含 CLI 模式的完整交互界面验收。
+
 接口形状兼容不等于每个供应商、模型和桌面端都已测试。完整 Windows / Claude Desktop 视觉效果未在本项目中验证。
 
 ## 官方参考
@@ -139,4 +195,5 @@ claude --plugin-dir ./plugins/prompt-translator
 - [插件安装与配置](https://code.claude.com/docs/en/plugins/install)
 - [userConfig 字段与安全存储](https://code.claude.com/docs/en/plugins-reference#user-configuration)
 - [Mods API](https://code.claude.com/docs/en/plugins/mods/api)
+- [Codex 非交互模式](https://developers.openai.com/codex/noninteractive)
 - [后台会话导航](https://code.claude.com/docs/en/agent-view#switch-sessions-without-leaving-the-terminal)
