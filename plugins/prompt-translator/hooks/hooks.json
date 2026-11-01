@@ -1,5 +1,5 @@
 {
-  "description": "Translate prompts before submission through the configured HTTP API or local Codex CLI.",
+  "description": "Translate prompts and response text through the configured HTTP API or local Codex CLI, with independent language routing.",
   "modules": [
     "./register.ts"
   ]

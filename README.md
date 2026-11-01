@@ -1,13 +1,14 @@
 # Claude Prompt Translator
 
-把提示词翻译成指定语言，再交给 Claude Code。翻译可使用外部模型 API 或本地 Codex CLI，默认英文，支持 `en / jp / cn / fr`。
+分别配置输入语言、发给 Claude 的语言、Claude 回复语言和最终输出语言。翻译可使用外部模型 API 或本地 Codex CLI，支持 `en / jp / cn / fr`，输入还支持自动识别。
 
-**接入只需要：安装插件 → 选择翻译方式 → 选目标语言。** 日常仍然直接运行 `claude`。
+**默认：中文输入 → 英文提示词 → Claude 英文回复 → 中文输出。** 每一段语言都可修改，日常仍然直接运行 `claude`。
 
 ```text
-你的输入 -> API / 本地 Codex CLI -> 译文 -> Claude Code
-                     |
-                     +-> 翻译进度、耗时、译文预览
+你的输入 -> 输入翻译 -> Claude -> 输出翻译 -> 最终输出
+  中文       英文       英文回复     中文       中文
+
+输入翻译与输出翻译共用你选择的 API / 本地 Codex CLI
 ```
 
 ## toy 的实现原理手稿
@@ -16,7 +17,7 @@
 
 [可缩放 SVG](assets/architecture/principle.svg) · [可编辑 Excalidraw](assets/architecture/principle.excalidraw)
 
-手稿展示 API 模式；Codex CLI 模式在同一提交钩子内调用本地进程翻译。
+手稿展示输入翻译的 API 模式；当前版本也支持 Codex CLI 和独立的输出翻译。
 
 ## 视频演示
 
@@ -28,23 +29,26 @@
 
 ## 1. 安装插件
 
-先确认 Claude Code 可运行。本项目在 **Claude Code 2.1.291** 上验证，使用同版本或更新版本。
+先确认 Claude Code 可运行。双向翻译在 **Claude Code 2.1.316** 上验证，使用同版本或更新版本。
 
 在终端执行：
 
 ```bash
-claude plugin marketplace add cfrs2005/claude-prompt-translator
+claude plugin marketplace add whiteCcinn/claude-prompt-translator
 claude plugin install prompt-translator@claude-prompt-translator
 ```
 
 然后运行 `claude`。已有会话可以执行 `/reload-plugins` 加载新安装的插件。
 
-也可以在安装时直接选择 Codex CLI 和目标语言（以下参数已在 Claude Code 2.1.316 验证）：
+也可以在安装时直接选择 Codex CLI，并指定日文输出：
 
 ```bash
 claude plugin install prompt-translator@claude-prompt-translator \
   --config backend=codex-cli \
-  --config language=en
+  --config input_language=cn \
+  --config language=en \
+  --config claude_language=en \
+  --config output_language=jp
 ```
 
 ## 2. 首次配置：选择翻译方式
@@ -55,7 +59,7 @@ claude plugin install prompt-translator@claude-prompt-translator \
 /plugin configure prompt-translator@claude-prompt-translator
 ```
 
-先选 **Translation backend**，再选 **Target language**，最后按模式填写对应字段并保存。Claude Code 的登录继续按你原来的方式使用。
+先选 **Translation backend**，再配置下面四段语言，最后按模式填写对应字段并保存。Claude Code 的登录继续按你原来的方式使用。
 
 | Translation backend | 需要配置 |
 | --- | --- |
@@ -106,30 +110,42 @@ Codex executable:    codex
 
 每次翻译启动一个临时 Codex 会话，超时为 120 秒。提示框会显示 `Codex CLI`；失败时停止提交，不会自动回退到 API。Codex 仍通过自己的配置访问模型服务，本地 CLI 模式不代表离线推理。更多说明见 [Codex CLI 接入](docs/integration.md#codex-cli-模式)。
 
-## 3. 选择语言并检查
+## 3. 配置语言链路并检查
 
-在 `/config` 中找到本插件的 **Target language**：
+在 `/config` 或插件配置中分别设置：
 
-| 代码 | 目标语言 |
-| --- | --- |
-| `en` | 英文，默认 |
-| `jp` | 日文 |
-| `cn` | 简体中文 |
-| `fr` | 法文 |
+| 配置项 | 用途 | 默认值 |
+| --- | --- | --- |
+| **Input language** | 你输入的语言；可选 `auto` 自动识别 | `cn`，中文 |
+| **Claude prompt language** | 输入翻译后交给 Claude 的语言 | `en`，英文 |
+| **Claude reply language** | 要求 Claude 回复正文使用的语言 | `same-as-prompt`，默认随提示词使用英文 |
+| **Output language** | Claude 回复翻译后，你最终读到的语言 | `cn`，中文 |
 
-语言选项会同时控制提示词翻译和 Claude 的回复语言。修改后自动生效。
+语言代码为 `cn`（简体中文）、`en`（英文）、`jp`（日文）、`fr`（法文）。输入语言和输出语言均可自由选择。
+
+例如，中文输入、日文输出，只需将 **Output language** 设为 `jp`，其他保持默认：
+
+```text
+中文输入 → 英文提示词 → Claude 英文回复 → 日文输出
+```
+
+也可以把输入设为日文、Claude 回复设为法文、最终输出设为英文；四段配置互相独立。将 **Output language** 设为 `same-as-claude`，或与 Claude 回复语言设为相同值，就直接显示回复，省去输出翻译。
+
+**Claude reply language** 通过指令引导正文语言，不控制内部思考语言。输出翻译会改写显示文本和对话记录；后续 Claude 会读取翻译后的历史回复。
 
 提交一句普通文本，例如“请简要介绍这个项目”。输入框上方会显示：
 
 ```text
 +---------------------------------------------+
 | 翻译中...  1.2 秒 · 英文 (en) · glm-5.3-flash |
-| 自动识别 -> 英文                             |
+| 中文 -> 英文                                 |
 +---------------------------------------------+
 > 
 ```
 
 成功后显示译文预览，3 秒后收起。失败时显示原因并停止这次提交，原文不会被悄悄放行。命令、空输入和以 `! / #` 开头的输入直接放行。
+
+Claude 每次模型响应收齐后，插件再翻译其中的普通正文。代码、路径、URL 会保护并还原；工具参数、工具结果和思考块不参与输出翻译。输出翻译失败时显示明确提示，避免把原文当成成功译文。
 
 查看安装状态：
 
@@ -139,7 +155,7 @@ claude plugin list
 
 ## 后续按需切换
 
-随时运行 `/plugin configure prompt-translator@claude-prompt-translator` 修改 **Translation backend**。也可以在 `/config` 中找到该选项，选择 `api` 或 `codex-cli`。
+随时运行 `/plugin configure prompt-translator@claude-prompt-translator` 修改翻译后端和四段语言，也可以在 `/config` 中修改。
 
 配置保存后由 Claude Code 重新加载插件，后续提交使用新的翻译方式；已填写的另一种模式的配置会保留。日常直接运行 `claude`。
 
@@ -163,9 +179,10 @@ claude plugin disable prompt-translator@claude-prompt-translator
 - API 模式须使用 OpenAI 兼容接口，并返回 `choices[0].message.content`。
 - API 模式使用翻译服务的密钥和额度；Codex CLI 模式使用本地 Codex 的认证和服务配置。
 - 路径、URL、行内代码和完整代码块会先替换成标记，翻译后原样放回。标记缺失时停止提交。
-- 即使输入已是目标语言，也会调用所选翻译后端，并要求原文返回。
-- Claude 的回复语言通过随提交附带的指令引导；插件不翻译 Claude 已生成的回答。
-- 动态提示框用于 Claude Code 终端的交互会话。`claude -p` 同样翻译，但不显示提示框。
+- 即使输入已是提示词目标语言，也会调用翻译后端，并要求原文返回。Claude 回复与最终输出配置为同一种语言时，省去输出翻译。
+- 输入和输出翻译均使用所选后端；需要输出翻译的每次主会话模型响应会额外调用一次翻译服务。一个带工具调用的任务可能有多次模型响应。
+- 输出翻译会写入对话记录；Claude 回复语言只引导生成时的正文语言。
+- 动态输入翻译提示框用于 Claude Code 终端的交互会话。响应流翻译也用于 `claude -p`；该模式不显示输入提示框。
 
 ## 更多说明
 

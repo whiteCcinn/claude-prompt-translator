@@ -1,7 +1,7 @@
 {
   "name": "prompt-translator",
-  "version": "0.1.0",
-  "description": "Translate prompts before Claude Code using an OpenAI-compatible API or local Codex CLI.",
+  "version": "0.2.0",
+  "description": "Translate prompts and Claude replies with independent input and output languages using an API or local Codex CLI.",
   "author": {
     "name": "Toy",
     "url": "https://github.com/cfrs2005"
@@ -14,10 +14,17 @@
       "options": ["api", "codex-cli"],
       "default": "api"
     },
+    "input_language": {
+      "type": "string",
+      "title": "Input language",
+      "description": "Your input language. Defaults to Chinese; choose auto to detect it. en: English; jp: Japanese; cn: Simplified Chinese; fr: French.",
+      "options": ["cn", "auto", "en", "jp", "fr"],
+      "default": "cn"
+    },
     "language": {
       "type": "string",
-      "title": "Target language",
-      "description": "Both backends: en: English; jp: Japanese; cn: Simplified Chinese; fr: French. Controls prompt translation and replies.",
+      "title": "Claude prompt language",
+      "description": "Language of the translated prompt sent to Claude. en: English; jp: Japanese; cn: Simplified Chinese; fr: French. Independent of final output language.",
       "options": [
         "en",
         "jp",
@@ -25,6 +32,20 @@
         "fr"
       ],
       "default": "en"
+    },
+    "claude_language": {
+      "type": "string",
+      "title": "Claude reply language",
+      "description": "Language requested for Claude's response text. same-as-prompt inherits Claude prompt language; does not control internal thinking or tools.",
+      "options": ["same-as-prompt", "en", "jp", "cn", "fr"],
+      "default": "same-as-prompt"
+    },
+    "output_language": {
+      "type": "string",
+      "title": "Output language",
+      "description": "Final response language you read, Chinese by default. same-as-claude skips output translation. Translated output is also stored in the conversation transcript.",
+      "options": ["cn", "en", "jp", "fr", "same-as-claude"],
+      "default": "cn"
     },
     "codex_path": {
       "type": "string",
