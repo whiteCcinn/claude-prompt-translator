@@ -1,6 +1,6 @@
 {
   "name": "prompt-translator",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Translate prompts and Claude replies with independent input and output languages using an API or local Codex CLI.",
   "author": {
     "name": "Toy",
@@ -50,8 +50,21 @@
     "codex_path": {
       "type": "string",
       "title": "Codex executable",
-      "description": "Codex CLI backend only. Leave codex to use PATH, or enter an executable's absolute path without arguments. Uses Codex's saved login and model configuration.",
+      "description": "Codex CLI backend only. Blank or codex uses PATH; an absolute executable path without arguments is also accepted. Reuses Codex's saved login.",
       "default": "codex"
+    },
+    "codex_model": {
+      "type": "string",
+      "title": "Codex translation model",
+      "description": "Codex CLI backend only. Leave blank to inherit your saved model, or enter a model ID available to your Codex provider for translation only. Does not change your Codex configuration.",
+      "default": ""
+    },
+    "codex_reasoning_effort": {
+      "type": "string",
+      "title": "Codex reasoning effort",
+      "description": "Codex CLI backend only. default inherits your saved reasoning effort. Choose low or medium to reduce translation reasoning; available levels depend on the selected model.",
+      "options": ["default", "low", "medium", "high", "xhigh", "max"],
+      "default": "default"
     },
     "api_url": {
       "type": "string",
@@ -62,7 +75,7 @@
     "model": {
       "type": "string",
       "title": "Translation model",
-      "description": "API backend only. Model ID accepted by your translation API. Codex CLI uses its own model configuration.",
+      "description": "API backend only. Model ID accepted by your translation API. Codex CLI uses the separate Codex translation model setting or its saved configuration.",
       "default": "glm-5.3-flash"
     },
     "api_key": {
@@ -74,7 +87,7 @@
     "reasoning_effort": {
       "type": "string",
       "title": "Reasoning effort",
-      "description": "API backend only. Use low for the default GLM model, or default to omit this field. Codex CLI uses its own reasoning configuration.",
+      "description": "API backend only. Use low for the default GLM model, or default to omit this field. Codex CLI uses the separate Codex reasoning effort setting.",
       "options": [
         "default",
         "low",

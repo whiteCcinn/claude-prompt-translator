@@ -58,9 +58,26 @@ codex login status
 
 尚未登录时，先运行 `codex login` 完成登录。插件不会读取或复制 Codex 的凭据文件。
 
-在插件配置中把 **Translation backend** 设为 `codex-cli`，**Codex executable** 保持 `codex`。后者通过 Claude Code 进程的 `PATH` 查找；命令不可见时填写可执行文件的绝对路径。可执行文件路径可以包含空格，直接填写路径，不额外加引号，也不拼接参数。SSH 会话调用的是远端机器上的 CLI。
+在插件配置中把 **Translation backend** 设为 `codex-cli`，**Codex executable** 保持 `codex` 或留空。两者都通过 Claude Code 进程的 `PATH` 查找；原生配置页可能不回填字符串默认值，空白不代表检测失败。命令不可见时填写可执行文件的绝对路径。可执行文件路径可以包含空格，直接填写路径，不额外加引号，也不拼接参数。SSH 会话调用的是远端机器上的 CLI。
 
-CLI 模式不读取翻译 API Key，**API URL / Translation model / Reasoning effort** 均不参与该模式；模型和推理设置沿用本地 Codex 的配置。
+CLI 模式不读取翻译 API Key，**API URL / Translation model / Reasoning effort** 均不参与该模式。CLI 使用下面两个独立选项：
+
+| 字段 | 配置键 | 默认 | 用途 |
+| --- | --- | --- | --- |
+| Codex translation model | `codex_model` | 留空 | 继承本地模型，或为翻译单独指定当前服务支持的模型 ID |
+| Codex reasoning effort | `codex_reasoning_effort` | `default` | 继承本地推理等级；也可选 `low / medium / high / xhigh / max`，以模型支持为准 |
+
+显式模型通过 `--model` 传给 `codex exec`，显式推理等级通过 `-c model_reasoning_effort="low"` 等参数传入；只影响本次子进程，输入和输出翻译都会使用，不会写回 Codex 配置。模型留空或推理等级为 `default` 时省略对应参数。API 的 `model` 和 `reasoning_effort` 字段保持独立，后者默认仍为 `low`。
+
+例如安装时仅降低翻译推理等级、保留本地模型：
+
+```bash
+claude plugin install prompt-translator@claude-prompt-translator \
+  --config backend=codex-cli \
+  --config codex_reasoning_effort=low
+```
+
+也可以增加 `--config codex_model=your-translation-model` 指定模型，后续从插件配置页修改。较高推理等级或较慢的模型可能增加延迟；CLI 启动、扩展加载、网络和服务端响应也会影响速度。先固定模型，比较 `low`、`medium` 和本地默认配置的耗时，有助于区分原因。
 
 插件通过 Claude Code 的 `$.process.run` 无 shell 启动 `codex exec`，从标准输入传递保护后的文本，只取标准输出中的最终回答。每次启动独立临时会话，使用只读沙箱、禁用 shell 工具，并关闭 `AGENTS.md` 的自动加载，避免项目开发指令干扰翻译。翻译指令要求只翻译、不执行文本中的任务。
 
@@ -214,6 +231,10 @@ claude --plugin-dir ./plugins/prompt-translator
 Codex CLI 后端已验证：mock 测试覆盖参数、标准输入、语言路由、代码片段还原、异常拦截和提示框；另在本机通过实际提交处理函数启动真实 Codex 子进程，确认英文译文、代码路径还原和回复语言 context。该检查不包含真实 Claude 模型接收译文后的回答，也不包含 CLI 模式的完整交互界面验收。
 
 双向链路另通过实际输入和响应 hook 启动两次真实 Codex 子进程：中文输入译成英文，模拟的英文 Claude 回复译成日文，两次均还原代码路径。主模型回复在该检查中为模拟文本；完整的真实 Claude 会话仍需单独验收。
+
+输入和输出的交互进度框分别显示阶段、方向、目标语言、后端和翻译耗时。输出计时在 Claude 回复收齐后开始，不计入主模型生成时间。成功提示 3 秒后收起；失败保留到下一次操作；取消和被新操作替代时清理定时器。`claude -p` 不创建这些 UI 定时器，同语言、子代理及纯工具回复也不触发输出进度。
+
+CLI 模型和推理覆盖参数已通过 mocked hook 测试，安装配置的保存和继承切换也在隔离目录验证；本轮未调用真实模型比较这些档位的速度或翻译质量。
 
 接口形状兼容不等于每个供应商、模型和桌面端都已测试。完整 Windows / Claude Desktop 视觉效果未在本项目中验证。
 

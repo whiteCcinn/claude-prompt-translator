@@ -104,9 +104,21 @@ codex login status
 ```text
 Translation backend: codex-cli
 Codex executable:    codex
+Codex translation model: 留空，沿用本地模型
+Codex reasoning effort:  default，沿用本地推理等级
 ```
 
-插件会调用 `codex exec`，复用本地 Codex 的登录态、模型和服务配置，无需填写翻译 API URL、模型或 API Key。若 Claude Code 找不到命令，将 **Codex executable** 改为 Codex 可执行文件的绝对路径，只填路径，不加参数。
+插件会调用 `codex exec`，复用本地 Codex 的登录态和服务配置，无需填写翻译 API URL、Translation model 或 API Key。**Codex executable** 留空也会使用 `codex`，通过 `PATH` 查找；配置页可能不显示字符串默认值。若 Claude Code 找不到命令，将其改为 Codex 可执行文件的绝对路径，只填路径，不加参数。
+
+翻译较慢时，可以单独调整 **Codex translation model** 和 **Codex reasoning effort**。模型留空、推理等级选 `default` 时继承本地配置；也可以保持模型不变，先把翻译推理等级设为 `low` 或 `medium` 比较耗时。模型需填写当前 Codex 服务支持的 ID。这两个选项仅影响插件发起的输入和输出翻译，不会修改本地 Codex 配置；原有 **Reasoning effort** 仍只用于 API。
+
+安装时也可以指定翻译推理等级：
+
+```bash
+claude plugin install prompt-translator@claude-prompt-translator \
+  --config backend=codex-cli \
+  --config codex_reasoning_effort=low
+```
 
 每次翻译启动一个临时 Codex 会话，超时为 120 秒。提示框会显示 `Codex CLI`；失败时停止提交，不会自动回退到 API。Codex 仍通过自己的配置访问模型服务，本地 CLI 模式不代表离线推理。更多说明见 [Codex CLI 接入](docs/integration.md#codex-cli-模式)。
 
@@ -137,7 +149,7 @@ Codex executable:    codex
 
 ```text
 +---------------------------------------------+
-| 翻译中...  1.2 秒 · 英文 (en) · glm-5.3-flash |
+| 输入翻译中...  1.2 秒 · 英文 (en) · glm-5.3-flash |
 | 中文 -> 英文                                 |
 +---------------------------------------------+
 > 
@@ -146,6 +158,15 @@ Codex executable:    codex
 成功后显示译文预览，3 秒后收起。失败时显示原因并停止这次提交，原文不会被悄悄放行。命令、空输入和以 `! / #` 开头的输入直接放行。
 
 Claude 每次模型响应收齐后，插件再翻译其中的普通正文。代码、路径、URL 会保护并还原；工具参数、工具结果和思考块不参与输出翻译。输出翻译失败时显示明确提示，避免把原文当成成功译文。
+
+输出翻译也会在输入框上方显示独立进度，例如：
+
+```text
+输出翻译中...  0.8 秒 · 中文 (cn) · Codex CLI
+英文 → 中文
+```
+
+这里的计时从开始调用翻译后端算起，不包含 Claude 生成回复的时间。完成提示显示 3 秒，失败提示保留到下一次操作；取消时清理进度。同语言直出、子代理和纯工具响应不显示输出翻译提示。
 
 查看安装状态：
 
@@ -182,7 +203,7 @@ claude plugin disable prompt-translator@claude-prompt-translator
 - 即使输入已是提示词目标语言，也会调用翻译后端，并要求原文返回。Claude 回复与最终输出配置为同一种语言时，省去输出翻译。
 - 输入和输出翻译均使用所选后端；需要输出翻译的每次主会话模型响应会额外调用一次翻译服务。一个带工具调用的任务可能有多次模型响应。
 - 输出翻译会写入对话记录；Claude 回复语言只引导生成时的正文语言。
-- 动态输入翻译提示框用于 Claude Code 终端的交互会话。响应流翻译也用于 `claude -p`；该模式不显示输入提示框。
+- 输入和输出翻译的动态进度框用于 Claude Code 终端交互会话。响应流翻译也用于 `claude -p`；该模式不显示翻译进度框。
 
 ## 更多说明
 
