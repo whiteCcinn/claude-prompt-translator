@@ -14,7 +14,7 @@ async function collect<R>(stream: AsyncGenerator<TurnStepChunk, R>) {
   }
 }
 
-test("default inbound route declares Chinese source and English Claude replies", async ($, on) => {
+test("default inbound route declares Chinese source and English Claude replies", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
@@ -29,7 +29,7 @@ test("default inbound route declares Chinese source and English Claude replies",
   expect(result.context?.[0]).toContain("Reply in natural English")
 })
 
-test("input, prompt, and Claude reply languages are independent", { options: { input_language: "jp", language: "en", claude_language: "fr", output_language: "cn" } }, async ($, on) => {
+test("input, prompt, and Claude reply languages are independent", { options: { output_mode: "conversation", input_language: "jp", language: "en", claude_language: "fr", output_language: "cn" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
@@ -44,7 +44,7 @@ test("input, prompt, and Claude reply languages are independent", { options: { i
   expect(result.context?.[0]).toContain("Reply in natural French")
 })
 
-test("default output translates English replies into Chinese", async ($, on) => {
+test("default output translates English replies into Chinese", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
@@ -64,7 +64,7 @@ test("default output translates English replies into Chinese", async ($, on) => 
   expect(result.result.answer).toBe("你好。")
 })
 
-test("Codex output translation restores code split across response chunks", { options: { backend: "codex-cli" } }, async ($, on) => {
+test("Codex output translation restores code split across response chunks", { options: { output_mode: "conversation", backend: "codex-cli" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("process.run", (_, e) => {
     expect(e.argv.join(" ")).toContain("assistant response")
@@ -83,7 +83,7 @@ test("Codex output translation restores code split across response chunks", { op
   expect(result.chunks.filter(chunk => chunk.kind === "text").length).toBe(2)
 })
 
-test("output translation preserves tools, thinking, engine references and usage", async ($, on) => {
+test("output translation preserves tools, thinking, engine references and usage", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   const protocol: TurnStepChunk[] = [
     { kind: "tool", index: 1, id: "tool-1", name: "Read" },
@@ -107,7 +107,7 @@ test("output translation preserves tools, thinking, engine references and usage"
   expect(result.chunks[0]).toEqual({ kind: "text", index: 0, text: "第一段。" })
 })
 
-test("response headings are translated without applying input command bypass", { options: { output_language: "jp" } }, async ($, on) => {
+test("response headings are translated without applying input command bypass", { options: { output_mode: "conversation", output_language: "jp" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
@@ -123,7 +123,7 @@ test("response headings are translated without applying input command bypass", {
   expect((await collect($.turn.step(step))).text).toBe("# 結果\n完了しました。")
 })
 
-test("failed output translation shows one error without leaking original text", async ($, on) => {
+test("failed output translation shows one error without leaking original text", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", () => ({ value: { ok: true, status: 200, headers: {}, text: JSON.stringify({ choices: [{ message: { content: "missing path marker" } }] }) } }))
@@ -140,7 +140,7 @@ test("failed output translation shows one error without leaking original text", 
   expect(calls).toBe(1)
 })
 
-test("same-language output and subagents pass without calling a translator", { options: { claude_language: "fr", output_language: "fr" } }, async ($, on) => {
+test("same-language output and subagents pass without calling a translator", { options: { output_mode: "conversation", claude_language: "fr", output_language: "fr" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("turn.step", async function* (_, e) {
     yield { kind: "text", index: 0, text: "Bonjour." }
@@ -151,7 +151,7 @@ test("same-language output and subagents pass without calling a translator", { o
   expect((await collect($.turn.step({ ...step, agentId: "agent-1" }))).text).toBe("Bonjour.")
 })
 
-test("tool-only responses do not invoke output translation", async ($, on) => {
+test("tool-only responses do not invoke output translation", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   const tool: TurnStepChunk = { kind: "tool", index: 0, id: "call-1", name: "Read" }
   on("turn.step", async function* (_, e) {
@@ -164,7 +164,7 @@ test("tool-only responses do not invoke output translation", async ($, on) => {
   expect(result.chunks[0]).toEqual(tool)
 })
 
-test("retry response indices do not merge failed and successful attempts", async ($, on) => {
+test("retry response indices do not merge failed and successful attempts", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", (_, e) => {
@@ -184,7 +184,7 @@ test("retry response indices do not merge failed and successful attempts", async
   expect(result.chunks[1]).toEqual({ kind: "thinking", index: 1, text: "retry boundary" })
 })
 
-test("oversized response buffering fails explicitly while preserving protocol chunks", async ($, on) => {
+test("oversized response buffering fails explicitly while preserving protocol chunks", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   const tool: TurnStepChunk = { kind: "tool", index: 1, id: "call-1", name: "Read" }
   on("turn.step", async function* (_, e) {
@@ -199,7 +199,7 @@ test("oversized response buffering fails explicitly while preserving protocol ch
   expect(result.chunks[1]).toEqual(tool)
 })
 
-test("subagent responses bypass translation even when output differs", async ($, on) => {
+test("subagent responses bypass translation even when output differs", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("turn.step", async function* (_, e) {
     yield { kind: "text", index: 0, text: "Agent report." }
@@ -209,7 +209,7 @@ test("subagent responses bypass translation even when output differs", async ($,
   expect((await collect($.turn.step({ ...step, agentId: "agent-1" }))).text).toBe("Agent report.")
 })
 
-test("same-as-claude output inherits a legacy prompt language without translation", { options: { language: "jp", output_language: "same-as-claude" } }, async ($, on) => {
+test("same-as-claude output inherits a legacy prompt language without translation", { options: { output_mode: "conversation", language: "jp", output_language: "same-as-claude" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("turn.step", async function* (_, e) {
     yield { kind: "text", index: 0, text: "こんにちは。" }
@@ -219,7 +219,7 @@ test("same-as-claude output inherits a legacy prompt language without translatio
   expect((await collect($.turn.step(step))).text).toBe("こんにちは。")
 })
 
-test("output token truncation shows an error instead of partial translation", async ($, on) => {
+test("output token truncation shows an error instead of partial translation", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", () => ({ value: { ok: true, status: 200, headers: {}, text: JSON.stringify({ choices: [{ finish_reason: "length", message: { content: "不完整译文" } }] }) } }))
@@ -233,7 +233,7 @@ test("output token truncation shows an error instead of partial translation", as
   expect(result.text.includes("不完整译文")).toBe(false)
 })
 
-test("parallel responses keep their source text and translations separate", async ($, on) => {
+test("parallel responses keep their source text and translations separate", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   const clock = mock.clock(on)
   on("env.get", () => ({ value: "example-token" }))
@@ -257,7 +257,7 @@ test("parallel responses keep their source text and translations separate", asyn
   expect((await second).text).toBe("第二条回复。")
 })
 
-test("an interrupted model stream is not requested again by the catch handler", async ($, on) => {
+test("an interrupted model stream is not requested again by the catch handler", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   let calls = 0
   on("turn.step", async function* () {
@@ -271,7 +271,7 @@ test("an interrupted model stream is not requested again by the catch handler", 
   expect(calls).toBe(1)
 })
 
-test("translation failure is placed in the completed retry attempt", async ($, on) => {
+test("translation failure is placed in the completed retry attempt", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("env.get", () => ({ value: "example-token" }))
   on("http.fetch", () => ({ value: { ok: false, status: 500, headers: {}, text: "" } }))
@@ -288,13 +288,13 @@ test("translation failure is placed in the completed retry attempt", async ($, o
   expect(final?.kind === "text" && final.text.includes("输出翻译失败")).toBe(true)
 })
 
-test("cancellation while reading credentials prevents the outgoing HTTP request", async () => {
+test("cancellation while reading credentials prevents the outgoing HTTP request", { options: { output_mode: "conversation" } }, async () => {
   let handler: StreamHook<"turn.step"> | undefined
   const on = ((name: string, ...args: unknown[]) => {
     if (name === "turn.step") handler = args.at(-1) as StreamHook<"turn.step">
     return { catch() {} }
   }) as unknown as On
-  register(on, {})
+  register(on, { output_mode: "conversation" })
   const cancellation = new AbortController()
   let httpCalls = 0
   const engine = {
@@ -321,7 +321,7 @@ test("cancellation while reading credentials prevents the outgoing HTTP request"
   expect(result.text).toBe("")
 })
 
-test("an oversized interrupted stream is not promoted into a completed tool response", async ($, on) => {
+test("an oversized interrupted stream is not promoted into a completed tool response", { options: { output_mode: "conversation" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   let calls = 0
   on("turn.step", async function* () {

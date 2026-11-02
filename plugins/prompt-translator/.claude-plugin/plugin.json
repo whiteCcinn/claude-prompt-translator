@@ -1,6 +1,6 @@
 {
   "name": "prompt-translator",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Translate prompts and Claude replies with independent input and output languages using an API or local Codex CLI.",
   "author": {
     "name": "Toy",
@@ -43,9 +43,16 @@
     "output_language": {
       "type": "string",
       "title": "Output language",
-      "description": "Final response language you read, Chinese by default. same-as-claude skips output translation. Translated output is also stored in the conversation transcript.",
+      "description": "Final response language you read, Chinese by default. same-as-claude skips output translation. Output translation mode decides whether the transcript keeps the original or translated response.",
       "options": ["cn", "en", "jp", "fr", "same-as-claude"],
       "default": "cn"
+    },
+    "output_mode": {
+      "type": "string",
+      "title": "Output translation mode",
+      "description": "display-only 仅在界面翻译回复，模型历史和无界面输出保留原文（默认英文）；conversation 兼容旧版，同时改写显示和模型历史。",
+      "options": ["display-only", "conversation"],
+      "default": "display-only"
     },
     "codex_path_selection": {
       "type": "string",

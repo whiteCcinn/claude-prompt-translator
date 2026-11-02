@@ -26,7 +26,7 @@ for (const mode of [undefined, "default", "on", "off"]) {
 }
 
 for (const mode of ["on", "off"]) {
-  test(`CLI Fast ${mode} also applies to output without changing the Claude model`, { options: { backend: "codex-cli", codex_fast_mode: mode } }, async ($, on) => {
+  test(`CLI Fast ${mode} also applies to output without changing the Claude model`, { options: { output_mode: "conversation", backend: "codex-cli", codex_fast_mode: mode } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
     on("process.run", (_, e) => {
       expect(e.argv).toContain(mode === "on" ? 'service_tier="fast"' : 'service_tier="default"')

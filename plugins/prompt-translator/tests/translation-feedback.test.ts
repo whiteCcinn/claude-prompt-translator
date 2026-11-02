@@ -25,7 +25,7 @@ async function start($: Engine, interactive = true) {
 }
 
 for (const backend of ["api", "codex-cli"]) {
-  test(`${backend} output progress shows its own direction and completes with translation-only timing`, { options: { backend, output_language: "jp" } }, async ($, on) => {
+  test(`${backend} output progress shows its own direction and completes with translation-only timing`, { options: { output_mode: "conversation", backend, output_language: "jp" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
     const clock = mock.clock(on)
     session(on)
@@ -64,7 +64,7 @@ for (const backend of ["api", "codex-cli"]) {
   })
 }
 
-test("output failure remains visible without input failure wording or private source text", { options: { backend: "codex-cli" } }, async ($, on) => {
+test("output failure remains visible without input failure wording or private source text", { options: { output_mode: "conversation", backend: "codex-cli" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   const clock = mock.clock(on)
   session(on)
@@ -95,7 +95,7 @@ test("output failure remains visible without input failure wording or private so
   await ui.unmount()
 })
 
-test("an old input dismissal cannot hide a newer output translation", { options: { backend: "codex-cli" } }, async ($, on) => {
+test("an old input dismissal cannot hide a newer output translation", { options: { output_mode: "conversation", backend: "codex-cli" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   const clock = mock.clock(on)
   session(on)
@@ -122,7 +122,7 @@ test("an old input dismissal cannot hide a newer output translation", { options:
   await ui.unmount()
 })
 
-test("an older output completion cannot replace the newest translation card", { options: { backend: "codex-cli" } }, async ($, on) => {
+test("an older output completion cannot replace the newest translation card", { options: { output_mode: "conversation", backend: "codex-cli" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   const clock = mock.clock(on)
   session(on)
@@ -153,7 +153,7 @@ test("an older output completion cannot replace the newest translation card", { 
   await ui.unmount()
 })
 
-test("headless output translation creates no feedback timers or redraws", { options: { backend: "codex-cli" } }, async ($, on) => {
+test("headless output translation creates no feedback timers or redraws", { options: { output_mode: "conversation", backend: "codex-cli" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   session(on)
   on("process.run", () => ({ value: { exitCode: 0, stdout: "你好。", stderr: "", isStdoutTruncated: false, isStderrTruncated: false } }))
@@ -169,7 +169,7 @@ test("headless output translation creates no feedback timers or redraws", { opti
   expect(redraws).toBe(0)
 })
 
-test("a mounted prompt enables output progress after a plugin reload without another session start", { options: { backend: "codex-cli" } }, async ($, on) => {
+test("a mounted prompt enables output progress after a plugin reload without another session start", { options: { output_mode: "conversation", backend: "codex-cli" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   const clock = mock.clock(on)
   on("ui.render", ($, e) => $.ui.resolve(e).Box({ children: [] }))
@@ -192,7 +192,7 @@ test("a mounted prompt enables output progress after a plugin reload without ano
 })
 
 for (const skipped of ["same-language", "subagent", "tools-only"]) {
-  test(`${skipped} replies create no output translation card`, { options: { backend: "codex-cli", ...(skipped === "same-language" ? { output_language: "same-as-claude" } : {}) } }, async ($, on) => {
+  test(`${skipped} replies create no output translation card`, { options: { output_mode: "conversation", backend: "codex-cli", ...(skipped === "same-language" ? { output_language: "same-as-claude" } : {}) } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
     session(on)
     on("turn.step", async function* (_, e) {

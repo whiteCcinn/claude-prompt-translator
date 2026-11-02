@@ -67,7 +67,7 @@ test("API preset ignores retained manual endpoint/model values", { options: { ap
   expect((await $.prompt.submit({ text: "你好", origin: { kind: "sdk" }, wait: false })).text).toBe("Hello.")
 })
 
-test("output uses the preset without changing Claude's model", { options: { backend: "codex-cli", codex_model_selection: "gpt-6-luna" } }, async ($, on) => {
+test("output uses the preset without changing Claude's model", { options: { output_mode: "conversation", backend: "codex-cli", codex_model_selection: "gpt-6-luna" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("process.run", (_, e) => {
     expect(e.argv[e.argv.indexOf("--model") + 1]).toBe("gpt-6-luna")

@@ -57,7 +57,7 @@ test("blank CLI model does not override local configuration", { options: { backe
   expect((await $.prompt.submit({ text: "你好", origin: { kind: "sdk" }, wait: false })).text).toBe("Hello.")
 })
 
-test("CLI overrides also apply to output translation", { options: { backend: "codex-cli", codex_model_selection: "手动输入", codex_model: "translation-model", codex_reasoning_effort: "medium" } }, async ($, on) => {
+test("CLI overrides also apply to output translation", { options: { output_mode: "conversation", backend: "codex-cli", codex_model_selection: "手动输入", codex_model: "translation-model", codex_reasoning_effort: "medium" } }, async ($, on) => {
   on("config.list", () => ({ value: [] }))
   on("process.run", (_, e) => {
     const position = e.argv.indexOf("--model")
