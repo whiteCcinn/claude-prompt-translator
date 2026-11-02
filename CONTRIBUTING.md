@@ -12,6 +12,10 @@ claude plugin test plugins/prompt-translator
 
 Tests mock HTTP and process calls and do not require an API key, Codex installation, or Claude session authentication. Cover CLI invocation and failures without calling a real model in the automated suite.
 
+GitHub Actions runs these checks on `ubuntu-24.04` with Claude Code 2.1.316. The explicit image keeps the environment stable during GitHub's [ubuntu-latest migration](https://github.com/actions/runner-images/issues/14748).
+
+If a failed Actions job has no executed steps and reports `The job was not started because your account is locked due to a billing issue.`, the repository owner must resolve the account lock before rerunning the latest workflow. Follow GitHub's [locked-account guidance](https://docs.github.com/en/billing/how-tos/troubleshooting/locked-account); if Billing and licensing shows no issue to resolve, request a billing-lock review through GitHub Support. Runner selection does not remove this account-level restriction. Local checks establish local results only.
+
 For a live check, load the source plugin and configure a translation provider:
 
 ```bash
